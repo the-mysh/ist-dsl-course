@@ -10,6 +10,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
+plt.style.use('seaborn-v0_8')
+
+
 def configure_seed(seed):
     os.environ["PYTHONHASHSEED"] = str(seed)
     random.seed(seed)
@@ -110,9 +113,14 @@ class Perceptron(LinearModel):
         y_i (scalar): the gold label for that example
         other arguments are ignored
         """
-        # Question 2.1 a
-        raise NotImplementedError
 
+        # Question 2.1 a
+        y_est = self.predict(x_i)
+        if y_est == y_i:
+            return
+
+        self.W[y_i] += x_i
+        self.W[y_est] -= x_i
 
 class LogisticRegression(LinearModel):
 
