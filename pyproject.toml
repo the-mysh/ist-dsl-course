@@ -1,0 +1,9 @@
+[project]
+name = "ist-dsl-course"
+version = "0.0.1"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=2.0.2",
+]
