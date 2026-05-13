@@ -149,6 +149,8 @@ class LogisticRegression(LinearModel):
 
 class MLP(object):
     def __init__(self, n_classes, n_features, hidden_size, layers):
+        self._n_classes = n_classes
+
         in_sizes = [n_features] + [hidden_size[i] for i in range(layers)]
         out_sizes = [hidden_size[i] for i in range(layers)] + [n_classes]
         self.weights = [
@@ -158,16 +160,27 @@ class MLP(object):
         self.biases = [np.zeros(out_size) for out_size in out_sizes]
         self.activations = [relu for i in range(layers)] + [stable_softmax]
 
+    def one_hot(self, y_i):
+        arr = np.zeros(self._n_classes)
+        arr[y_i] = 1
+        return arr
+
     def forward_pass(self, X):
+        hs = [X]
+        zs = [X]
+
         h = X
         for (layer_weights, layer_biases, layer_activation) in zip(self.weights, self.biases, self.activations):
             z = np.dot(h, layer_weights) + layer_biases
             h = layer_activation(z)
-        return h
+
+            hs.append(h)
+            zs.append(z)
+        return hs, zs
 
     def predict(self, X):
-        h = self.forward_pass(X)
-        return h.argmax(axis=-1)
+        hs, zs = self.forward_pass(X)
+        return hs[-1].argmax(axis=-1)
 
     def evaluate(self, X, y):
         y_hat = self.predict(X)
@@ -176,7 +189,35 @@ class MLP(object):
         return n_correct / n_possible
 
     def train_epoch(self, X, y, learning_rate=0.001):
-        raise NotImplementedError
+        for x_i, y_i in tqdm(zip(X, y)):
+            self.backward_pass(x_i, y_i, learning_rate=learning_rate)
+
+    def backward_pass(self, x_i, y_i, learning_rate=0.001):
+        hs, zs = self.forward_pass(x_i)
+        *hidden_hs, final_h = hs
+        *hidden_zs, final_z = zs
+        *hidden_activations, final_activation = self.activations
+
+        weight_updates = {}
+        bias_updates = {}
+
+        z_gradient = final_h - self.one_hot(y_i)  # special case with softmax activation in the last layer
+
+        ni = -len(self.weights)
+
+        for i in range(-1, ni - 1, -1):
+            weight_updates[i] = np.outer(hidden_hs[i], z_gradient)
+            bias_updates[i] = z_gradient
+
+            if i > ni:
+                h_gradient = np.dot(z_gradient, self.weights[i].T)
+                z_gradient = h_gradient * f_derivatives[hidden_activations[i]](hidden_zs[i])
+
+        for i, weight_update in weight_updates.items():
+            self.weights[i] -= learning_rate * weight_update
+
+        for i, bias_update in bias_updates.items():
+            self.biases[i] -= learning_rate * bias_update
 
 
 def plot(epochs, valid_accs, test_accs, save_fig=None):
