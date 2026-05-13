@@ -158,8 +158,16 @@ class MLP(object):
         self.biases = [np.zeros(out_size) for out_size in out_sizes]
         self.activations = [relu for i in range(layers)] + [stable_softmax]
 
+    def forward_pass(self, X):
+        h = X
+        for (layer_weights, layer_biases, layer_activation) in zip(self.weights, self.biases, self.activations):
+            z = np.dot(h, layer_weights) + layer_biases
+            h = layer_activation(z)
+        return h
+
     def predict(self, X):
-        raise NotImplementedError
+        h = self.forward_pass(X)
+        return h.argmax(axis=-1)
 
     def evaluate(self, X, y):
         y_hat = self.predict(X)
@@ -199,7 +207,7 @@ def main():
         help="""Number of epochs to train for. You should not
                         need to change this value for your plots.""",
     )
-    parser.add_argument("--hidden_sizes", type=list, default=[100], help="List of hidden sizes for each layer")
+    parser.add_argument("--hidden_sizes", type=int, nargs='+', default=[100], help="List of hidden sizes for each layer")
     parser.add_argument("--layers", type=int, default=1)
     parser.add_argument("--learning_rate", type=float, default=0.001)
     parser.add_argument("--save_fig", default=None, help="Path to save the plot.")
