@@ -3,6 +3,7 @@
 import argparse
 import random
 import os
+from functools import lru_cache
 from itertools import count
 from collections import defaultdict
 from tqdm import tqdm
@@ -80,6 +81,8 @@ def stable_softmax(x):
 class LinearModel(object):
     def __init__(self, n_classes, n_features, **kwargs):
         self.W = np.zeros((n_classes, n_features))
+        self._n_classes = n_classes
+        self._n_features = n_features
 
     def update_weight(self, x_i, y_i, **kwargs):
         raise NotImplementedError
@@ -124,6 +127,12 @@ class Perceptron(LinearModel):
 
 class LogisticRegression(LinearModel):
 
+    @lru_cache(maxsize=None)
+    def one_hot(self, y_i):
+        arr = np.zeros(self._n_classes)
+        arr[y_i] = 1
+        return arr
+
     def update_weight(self, x_i, y_i, learning_rate=0.001):
         """
         x_i (n_features): a single training example
@@ -131,8 +140,11 @@ class LogisticRegression(LinearModel):
         learning_rate (float): keep it at the default value for your plots
         l2_penalty (float): BONUS
         """
+
         # Question 2.2 b
-        raise NotImplementedError
+        scores = np.dot(self.W, x_i)
+        error = self.one_hot(y_i) - softmax(scores)
+        self.W += learning_rate * np.outer(error, x_i)
 
 
 class MLP(object):
