@@ -9,7 +9,12 @@ from tqdm import tqdm
 from torch.utils.data import Dataset, DataLoader
 import torchvision.transforms as transforms
 import torch.nn as nn
+import os
+from datetime import datetime
+from pathlib import Path
 import torch.nn.functional as F
+
+plt.style.use('seaborn-v0_8')
 
 
 class MNISTC(Dataset):
@@ -62,13 +67,15 @@ class LogisticRegression(nn.Module):
         n_features (int)
         """
         super(LogisticRegression, self).__init__()
-        # needs to be implemented!
+
+        self.weight = nn.Parameter(torch.zeros(n_classes, n_features))
+        self.bias = nn.Parameter(torch.zeros(n_classes))
 
     def forward(self, x, **kwargs):
         """
         x (batch_size x n_features): a batch of training examples
         """
-        raise NotImplementedError
+        return x @ self.weight.T + self.bias
 
 
 ## Question 3.2
@@ -119,7 +126,15 @@ def train_batch(X, y, model, optimizer, criterion, **kwargs):
     optimizer: optimizer used in gradient step
     criterion: loss function
     """
-    raise NotImplementedError
+
+    optimizer.zero_grad()       # clear old gradients
+
+    y_est = model(X)            # evaluate -> logits (n_examples x n_classes)
+    loss = criterion(y_est, y)  # compare to ground truth, calculate loss
+    loss.backward()             # compute gradients
+    optimizer.step()            # update weights
+
+    return loss.item()
 
 
 def predict(model, X):
@@ -158,12 +173,14 @@ def evaluate(model, dataloader, modeltype="cnn"):
     return n_correct / n_possible
 
 
-def plot(epochs, plottable, ylabel=""):
+def plot(epochs, plottable, ylabel="", save_path=None):
     plt.clf()
     plt.xlabel("Epoch")
     plt.ylabel(ylabel)
     plt.plot(epochs, plottable)
     plt.show()
+    if save_path:
+        plt.savefig(save_path)
 
 
 def main():
@@ -191,6 +208,7 @@ def main():
     parser.add_argument("--dropout", type=float, default=0)
     parser.add_argument("--activation", choices=["tanh", "relu"], default="relu")
     parser.add_argument("--optimizer", choices=["sgd", "adam"], default="sgd")
+    parser.add_argument("--save-path", default=None, help="Template path to save plots.")
     opt = parser.parse_args()
 
     configure_seed(seed=42)
@@ -259,6 +277,9 @@ def main():
     valid_accs = []
     train_losses = []
 
+    checkpoint_dir = Path(".")/f"checkpoints_{datetime.now().strftime("%Y%m%d-%H%M%S")}"
+    os.makedirs(checkpoint_dir, exist_ok=True)
+
     for ii in epochs:
         print("Training epoch {}".format(ii))
         for X_batch, y_batch in tqdm(train_dataloader):
@@ -278,7 +299,7 @@ def main():
         )
         print("Valid acc: %.4f" % (valid_accuracy))
         if len(valid_accs) < 1 or valid_accuracy > max(valid_accs):
-            path_to_model = opt.model + "_epoch_" + str(ii) + ".pt"
+            path_to_model = str(checkpoint_dir / (opt.model + "_epoch_" + str(ii) + ".pt"))
             torch.save(
                 {
                     "epoch": ii,
@@ -298,16 +319,19 @@ def main():
         "Final Test acc: %.4f"
         % (evaluate(model, test_dataloader, modeltype=opt.model))
     )
+
     # plot
     plot(
         epochs,
         train_mean_losses,
-        ylabel="Loss"
+        ylabel="Loss",
+        save_path=opt.save_path.format("loss") if opt.save_path else None
     )
     plot(
         epochs,
         valid_accs,
-        ylabel="Accuracy"
+        ylabel="Accuracy",
+        save_path=opt.save_path.format("accuracy") if opt.save_path else None
     )
 
 
