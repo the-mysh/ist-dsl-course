@@ -107,29 +107,31 @@ class FeedforwardNetwork(nn.Module):
         elif (nh := len(hidden_sizes)) != n_layers:
             raise ValueError(f"Specified {n_layers} layers, but {nh} hidden layer sizes")
 
-        sizes = [n_features] + hidden_sizes + [n_classes]
-        layers = []
-        for size_in, size_out in zip(sizes[:-1], sizes[1:]):
-            layers.append(nn.Linear(size_in, size_out, bias=True))
-        self.layers = nn.ModuleList(layers)
-
         match activation_type:
             case "tanh":
-                activation_fn = nn.Tanh()
+                activation_fn = nn.Tanh
             case "relu":
                 activation_fn = nn.ReLU
             case _:
                 raise ValueError(f"Activation type '{activation_type}' not recognised")
 
-        self.activations = [activation_fn() for _ in range(len(self.layers) - 1)] + [nn.Identity()]
+        sizes = [n_features] + hidden_sizes + [n_classes]
+        components = []
+        nh = len(hidden_sizes)
+        for i, (size_in, size_out) in enumerate(zip(sizes[:-1], sizes[1:])):
+            components.append(nn.Linear(size_in, size_out, bias=True))
+            if i < nh:
+                components.append(activation_fn())
+                components.append(nn.Dropout(dropout))
+
+        self.model = nn.Sequential(*components)
 
     def forward(self, x, **kwargs):
         """
         x (batch_size x n_features): a batch of training examples
         """
-        for layer, activation in zip(self.layers, self.activations):
-            x = activation(layer(x))
-        return x
+
+        return self.model(x)
 
 
 ## Question 3.3
