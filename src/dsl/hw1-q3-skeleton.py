@@ -82,30 +82,54 @@ class LogisticRegression(nn.Module):
 class FeedforwardNetwork(nn.Module):
     def __init__(
         self,
-        n_classes,
-        n_features,
-        hidden_sizes,
-        layers,
-        activation_type,
-        dropout,
+        n_classes: int,
+        n_features: int,
+        hidden_sizes: list[int],
+        n_layers: int,
+        activation_type: str,
+        dropout: float,
         **kwargs
     ):
         """
         n_classes (int)
         n_features (int)
-        hidden_sizes (list) Note: can also be a int
+        hidden_sizes (list) Note: can also be an int
         layers (int)
         activation_type (str)
         dropout (float): dropout probability
         """
         super(FeedforwardNetwork, self).__init__()
-        # needs to be implemented!
+
+        if isinstance(hidden_sizes, int):
+            hidden_sizes = n_layers * [hidden_sizes]
+        elif not isinstance(hidden_sizes, list):
+            raise TypeError(f"hidden_sizes: expected an int or list of ints, got {type(hidden_sizes)}")
+        elif (nh := len(hidden_sizes)) != n_layers:
+            raise ValueError(f"Specified {n_layers} layers, but {nh} hidden layer sizes")
+
+        sizes = [n_features] + hidden_sizes + [n_classes]
+        layers = []
+        for size_in, size_out in zip(sizes[:-1], sizes[1:]):
+            layers.append(nn.Linear(size_in, size_out, bias=True))
+        self.layers = nn.ModuleList(layers)
+
+        match activation_type:
+            case "tanh":
+                activation_fn = nn.Tanh()
+            case "relu":
+                activation_fn = nn.ReLU
+            case _:
+                raise ValueError(f"Activation type '{activation_type}' not recognised")
+
+        self.activations = [activation_fn() for _ in range(len(self.layers) - 1)] + [nn.Identity()]
 
     def forward(self, x, **kwargs):
         """
         x (batch_size x n_features): a batch of training examples
         """
-        raise NotImplementedError
+        for layer, activation in zip(self.layers, self.activations):
+            x = activation(layer(x))
+        return x
 
 
 ## Question 3.3
