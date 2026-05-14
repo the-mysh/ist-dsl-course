@@ -136,12 +136,33 @@ class FeedforwardNetwork(nn.Module):
 
 ## Question 3.3
 class CNN(nn.Module):
-    def __init__(self, num_classes=10, dropout=0.1, channels=1):
+    def __init__(self, num_classes, n_features, dropout=0.1, channels=1):
         super().__init__()
-        # Needs to be implemented!
 
-    def forward(self, input):
-        raise NotImplementedError
+        conv_kwargs = dict(kernel_size=5, stride=1, padding=2)
+        pooling_kernel_size = 2
+
+        cc = [8, 16]
+        hs = 50
+
+        self.model = nn.Sequential(
+            nn.Conv2d(channels, cc[0], **conv_kwargs),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=pooling_kernel_size),
+            nn.Conv2d(cc[0], cc[1], **conv_kwargs),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Flatten(),
+            nn.Linear(cc[1] * n_features // (2 * pooling_kernel_size), hs),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(hs, num_classes)
+        )
+
+        # note: LogSoftmax is a part of nn.CrossEntropyLoss passed to train_batch - omitting it here
+
+    def forward(self, x):
+        return self.model(x)
 
 
 def train_batch(X, y, model, optimizer, criterion, **kwargs):
@@ -268,14 +289,15 @@ def main():
     dev_dataloader = DataLoader(dev_dataset, batch_size=opt.batch_size, shuffle=True)
 
     # initialize the model
+    n_features_flat = n_feats * n_feats
     if opt.model == "logistic_regression":
-        model = LogisticRegression(n_classes, n_feats * n_feats)
+        model = LogisticRegression(n_classes, n_features_flat)
     elif opt.model == "cnn":
-        model = CNN(n_classes, dropout=opt.dropout, channels=1)
+        model = CNN(n_classes, n_features_flat, dropout=opt.dropout, channels=1)
     else:
         model = FeedforwardNetwork(
             n_classes,
-            n_feats * n_feats,
+            n_features_flat,
             opt.hidden_sizes,
             opt.layers,
             opt.activation,
