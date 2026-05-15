@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import os
+
 import torch
 import numpy as np
 import argparse
@@ -12,7 +12,7 @@ import torch.nn as nn
 import os
 from datetime import datetime
 from pathlib import Path
-import torch.nn.functional as F
+
 
 plt.style.use('seaborn-v0_8')
 

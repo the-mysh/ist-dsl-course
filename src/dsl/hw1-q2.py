@@ -4,8 +4,6 @@ import argparse
 import random
 import os
 from functools import lru_cache
-from itertools import count
-from collections import defaultdict
 from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
